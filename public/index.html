@@ -1,0 +1,158 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>사진 업로드</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            text-align: center;
+        }
+
+        .upload-container {
+            margin-top: 50px;
+        }
+
+        #imageGrid {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 10px;
+        }
+
+        .image-item {
+            position: relative;
+        }
+
+        .image-item img {
+            max-width: 100%;
+            height: auto;
+            border: 1px solid #ddd;
+        }
+
+        .delete-button {
+            margin-top: 5px;
+            background-color: red;
+            color: white;
+            border: none;
+            padding: 5px 10px;
+            cursor: pointer;
+        }
+
+        .download-link {
+            display: block;
+            margin-top: 5px;
+            text-decoration: none;
+            color: #007bff;
+        }
+
+        .download-link:hover {
+            text-decoration: underline;
+        }
+
+        input[type="file"] {
+            margin-top: 10px;
+            padding: 10px 20px;
+            font-size: 16px;
+        }
+
+        pre {
+            text-align: left;
+            margin: 20px auto;
+            max-width: 80%;
+            white-space: pre-wrap;
+        }
+    </style>
+</head>
+<body>
+
+    <div class="upload-container">
+        <h1>사진 업로드</h1>
+        <input type="file" id="imageInput" accept="image/*" multiple>
+        <div id="imageGrid"></div>
+    </div>
+
+    <script>
+        const imageInput = document.getElementById('imageInput');
+        const imageGrid = document.getElementById('imageGrid');
+        const hardcodedPassword = 'min'; 
+
+        function renderUploadedImages(images) {
+            imageGrid.innerHTML = '';  // Clear existing images
+
+            images.forEach(imageUrl => {
+                const imgContainer = document.createElement('div');
+                imgContainer.classList.add('image-item');
+
+                const img = document.createElement('img');
+                img.src = imageUrl;
+                imgContainer.appendChild(img);
+
+                const downloadLink = document.createElement('a');
+                downloadLink.href = imageUrl;
+                downloadLink.download = 'download';
+                downloadLink.classList.add('download-link');
+                downloadLink.textContent = '다운로드';
+                imgContainer.appendChild(downloadLink);
+
+                const deleteButton = document.createElement('button');
+                deleteButton.textContent = '삭제';
+                deleteButton.classList.add('delete-button');
+
+                deleteButton.addEventListener('click', () => {
+                    const password = prompt('관리자 비밀번호를 입력하세요:');
+                    if (password === hardcodedPassword) {
+                        if (confirm('정말로 이 이미지를 삭제하시겠습니까?')) {
+                            fetch('/delete-image', {
+                                method: 'POST',
+                                headers: { 'Content-Type': 'application/json' },
+                                body: JSON.stringify({ imageUrl: imageUrl })
+                            })
+                            .then(response => response.text())
+                            .then(result => {
+                                alert(result);
+                                imgContainer.remove();  
+                            })
+                            .catch(error => console.error('Error:', error));
+                        }
+                    } else {
+                        alert('비밀번호가 올바르지 않습니다.');
+                    }
+                });
+
+                imgContainer.appendChild(deleteButton);
+
+                imageGrid.appendChild(imgContainer);
+            });
+        }
+
+        function fetchImages() {
+            fetch('/images')
+                .then(response => response.json())
+                .then(images => renderUploadedImages(images))
+                .catch(error => console.error('Error fetching images:', error));
+        }
+
+        imageInput.addEventListener('change', function(event) {
+            const files = event.target.files;
+            const formData = new FormData();
+            Array.from(files).forEach(file => formData.append('files', file));
+
+            fetch('/upload', {
+                method: 'POST',
+                body: formData
+            })
+            .then(response => response.text())
+            .then(result => {
+                alert(result);
+                fetchImages();  // Reload images after upload
+            })
+            .catch(error => console.error('Error uploading files:', error));
+        });
+
+        // Load images when the page is loaded
+        window.addEventListener('load', fetchImages);
+    </script>
+
+</body>
+</html>
